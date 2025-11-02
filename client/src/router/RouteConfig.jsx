@@ -1,4 +1,3 @@
-import React from 'react';
 import Home from '../pages/common/Home/Home.jsx';
 import Login from '../pages/common/Login/Login.jsx';
 import NotFound from '../pages/common/NotFound/NotFound.jsx';
