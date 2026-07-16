@@ -4,20 +4,39 @@ const subscriptionService = require('../services/subscriptionService');
 
 const CreateCheckoutSession = async (req, res, next) => {
     try {
+        const clientType = req.get('x-client-type');
         const CLIENT_URL = req.get('origin');
-        const { priceId } = req.body;
-        // console.log(priceId, 'priceId')
+        const { priceId, successRedirectUrl, cancelRedirectUrl } = req.body;
         const userId = req.user?.id;
+
         let stripeCustomerId = await userService.fetchUserStripeCustomerId(userId);
         if (!stripeCustomerId) {
             const user = await userService.fetchUser(userId);
             stripeCustomerId = await stripeService.createCustomer(user.name, user.email);
             await userService.updateUser(userId, { stripeCustomerId });
         }
-        const sessionURL = await stripeService.createCheckoutSession(priceId, stripeCustomerId, CLIENT_URL);
+
+        const isMobile = clientType === 'native';
+        const redirectBase = isMobile
+            ? process.env.MOBILE_REDIRECT_BASE_URL
+            : CLIENT_URL;
+
+        if (!redirectBase) {
+            const err = new Error('Missing redirect base URL');
+            err.code = 400;
+            throw err;
+        }
+
+        const sessionURL = await stripeService.createCheckoutSession(
+            priceId,
+            stripeCustomerId,
+            redirectBase,
+            isMobile,
+            successRedirectUrl,
+            cancelRedirectUrl
+        );
         res.status(200).json({ url: sessionURL });
     } catch (error) {
-        // console.log(error, 'CreateCheckoutSession')
         next(error);
     }
 };
