@@ -85,26 +85,29 @@ const updateCustomerEmail = async (stripeCustomerId, newEmail) => {
     }
 };
 
-const createCheckoutSession = async (priceId, stripeCustomerId, CLIENT_URL) => {
+const createCheckoutSession = async (priceId, stripeCustomerId, redirectBase, isMobile, successRedirectUrl, cancelRedirectUrl) => {
     try {
-        const session = await stripe.checkout.sessions.create(
-            {
-                mode: "subscription",
-                payment_method_types: ["card"],
-                line_items: [
-                    {
-                        price: priceId,
-                        quantity: 1,
-                    },
-                ],
-                success_url: `${CLIENT_URL}/seller/success`,
-                cancel_url: `${CLIENT_URL}/seller/plans`,
-                customer: stripeCustomerId,
-            }
-        );
+        const encodedSuccess = successRedirectUrl ? encodeURIComponent(successRedirectUrl) : '';
+        const encodedCancel = cancelRedirectUrl ? encodeURIComponent(cancelRedirectUrl) : '';
+
+        const successUrl = isMobile
+            ? `${redirectBase}/mobile-redirect/success?redirectUrl=${encodedSuccess}`
+            : `${redirectBase}/seller/success`;
+        const cancelUrl = isMobile
+            ? `${redirectBase}/mobile-redirect/cancel?redirectUrl=${encodedCancel}`
+            : `${redirectBase}/seller/plans`;
+
+        const session = await stripe.checkout.sessions.create({
+            mode: "subscription",
+            payment_method_types: ["card"],
+            line_items: [{ price: priceId, quantity: 1 }],
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            customer: stripeCustomerId,
+        });
         return session.url;
     } catch (error) {
-        console.log("Stripe Checkout Error: ", error);
+        console.log("Stripe Checkout Error:", error);
         const newError = new Error('Unable to create checkout session!');
         newError.code = 400;
         throw newError;
